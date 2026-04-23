@@ -4,7 +4,9 @@ warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 import gradio as gr
 import whisper
+import glob
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -203,6 +205,18 @@ HEADER_HTML = """
 """
 
 
+def _cleanup_stale_gradio_files() -> None:
+    tmp = tempfile.gettempdir()
+    for path in glob.glob(os.path.join(tmp, "gradio-*")):
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+        except OSError:
+            pass
+
+
 def _get_device():
     try:
         import torch
@@ -322,6 +336,7 @@ with gr.Blocks(title="文字起こし", theme=gr.themes.Base(), css=CSS) as demo
 
 
 if __name__ == "__main__":
+    _cleanup_stale_gradio_files()
     demo.launch(
         server_name="127.0.0.1",
         server_port=7860,
