@@ -12,6 +12,140 @@ ALLOWED_EXTENSIONS = {
     ".aac", ".wma", ".mov", ".avi", ".mkv", ".webm",
 }
 
+CSS = """
+.gradio-container {
+    max-width: 780px !important;
+    margin: 0 auto !important;
+    padding: 2rem 1rem 4rem !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+}
+
+footer { display: none !important; }
+
+/* ヘッダー */
+.app-header {
+    text-align: center;
+    padding: 2.25rem 1.5rem 2rem;
+    background: linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%);
+    border-radius: 20px;
+    border: 1px solid #c7d2fe;
+    margin-bottom: 1.75rem;
+}
+.app-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1e1b4b;
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.03em;
+}
+.app-subtitle {
+    color: #4338ca;
+    font-size: 0.9rem;
+    margin: 0 0 1.1rem;
+}
+.privacy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #ffffff;
+    color: #15803d;
+    border: 1px solid #86efac;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.3rem 0.9rem;
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    letter-spacing: 0.01em;
+}
+
+/* タブ */
+.tab-nav {
+    border-bottom: 2px solid #e2e8f0 !important;
+    gap: 0 !important;
+    background: transparent !important;
+    margin-bottom: 1.5rem !important;
+}
+.tab-nav button {
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    color: #64748b !important;
+    border-radius: 0 !important;
+    padding: 0.7rem 1.5rem !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    margin-bottom: -2px !important;
+    transition: color 0.15s !important;
+}
+.tab-nav button:hover {
+    color: #4f46e5 !important;
+    background: transparent !important;
+}
+.tab-nav button.selected {
+    color: #4f46e5 !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+    border-bottom: 2px solid #4f46e5 !important;
+}
+
+/* 入力ラベル */
+.label-wrap span {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    letter-spacing: 0.01em !important;
+}
+
+/* ボタン */
+#btn-file, #btn-mic {
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+    border: none !important;
+    border-radius: 12px !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    letter-spacing: 0.01em !important;
+    box-shadow: 0 2px 10px rgba(79, 70, 229, 0.35) !important;
+    transition: all 0.2s ease !important;
+    margin-top: 0.25rem !important;
+}
+#btn-file:hover, #btn-mic:hover {
+    background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%) !important;
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.45) !important;
+    transform: translateY(-1px) !important;
+}
+#btn-file:active, #btn-mic:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3) !important;
+}
+
+/* 出力テキストエリア */
+#out-file, #out-mic {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+#out-file textarea, #out-mic textarea {
+    font-size: 0.95rem !important;
+    line-height: 1.8 !important;
+    color: #1e293b !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 1rem 1.1rem !important;
+    border-radius: 12px !important;
+}
+#out-file textarea:focus, #out-mic textarea:focus {
+    border-color: #a5b4fc !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+/* セパレーター */
+.divider {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 1.25rem 0;
+}
+"""
+
 
 def _get_device():
     try:
@@ -73,7 +207,6 @@ def transcribe(audio_path, progress=gr.Progress()):
         thread = threading.Thread(target=run, daemon=True)
         thread.start()
 
-        # MPS は CPU の約3倍速、CPU は音声の約3倍の時間がかかる
         estimated_sec = duration_sec / 3 if device == "mps" else duration_sec * 3
         start = time.time()
 
@@ -103,21 +236,55 @@ def transcribe(audio_path, progress=gr.Progress()):
             pass
 
 
-with gr.Blocks(title="ローカル文字起こしアプリ") as demo:
-    gr.Markdown("# ローカル文字起こしアプリ")
-    gr.Markdown("音声・動画ファイルをアップロードするか、マイクで録音してください。文字起こし結果はこの画面にのみ表示され、外部には送信されません。")
+with gr.Blocks(title="ローカル文字起こしアプリ", theme=gr.themes.Soft(), css=CSS) as demo:
 
-    with gr.Tab("ファイルアップロード"):
-        file_input = gr.Audio(type="filepath", label="音声・動画ファイル")
-        file_output = gr.Textbox(label="文字起こし結果", lines=10, show_copy_button=True)
-        file_btn = gr.Button("文字起こし開始", variant="primary")
-        file_btn.click(fn=transcribe, inputs=file_input, outputs=file_output)
+    gr.HTML("""
+    <div class="app-header">
+        <div class="privacy-badge">🔒 完全ローカル処理 &nbsp;|&nbsp; データ送信なし</div>
+        <h1 class="app-title">🎙️ 文字起こしアプリ</h1>
+        <p class="app-subtitle">音声・動画ファイルをアップロードするか、マイクで録音してください</p>
+    </div>
+    """)
 
-    with gr.Tab("マイク録音"):
-        mic_input = gr.Audio(sources=["microphone"], type="filepath", label="マイク録音")
-        mic_output = gr.Textbox(label="文字起こし結果", lines=10, show_copy_button=True)
-        mic_btn = gr.Button("文字起こし開始", variant="primary")
-        mic_btn.click(fn=transcribe, inputs=mic_input, outputs=mic_output)
+    with gr.Tabs():
+        with gr.TabItem("📁　ファイルアップロード"):
+            file_input = gr.Audio(
+                type="filepath",
+                label="音声・動画ファイル",
+            )
+            file_btn = gr.Button(
+                "✨　文字起こし開始",
+                variant="primary",
+                elem_id="btn-file",
+            )
+            file_output = gr.Textbox(
+                label="文字起こし結果",
+                lines=12,
+                show_copy_button=True,
+                placeholder="ここに文字起こし結果が表示されます...",
+                elem_id="out-file",
+            )
+            file_btn.click(fn=transcribe, inputs=file_input, outputs=file_output)
+
+        with gr.TabItem("🎤　マイク録音"):
+            mic_input = gr.Audio(
+                sources=["microphone"],
+                type="filepath",
+                label="マイク録音",
+            )
+            mic_btn = gr.Button(
+                "✨　文字起こし開始",
+                variant="primary",
+                elem_id="btn-mic",
+            )
+            mic_output = gr.Textbox(
+                label="文字起こし結果",
+                lines=12,
+                show_copy_button=True,
+                placeholder="ここに文字起こし結果が表示されます...",
+                elem_id="out-mic",
+            )
+            mic_btn.click(fn=transcribe, inputs=mic_input, outputs=mic_output)
 
 
 if __name__ == "__main__":
