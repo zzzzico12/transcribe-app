@@ -2,15 +2,31 @@ import gradio as gr
 import whisper
 import os
 import tempfile
+import threading
+import time
 
 MODEL_SIZE = "medium"
-MAX_FILE_SIZE_MB = 500
+MAX_FILE_SIZE_MB = 2000
 ALLOWED_EXTENSIONS = {
     ".mp3", ".mp4", ".wav", ".m4a", ".ogg", ".flac",
     ".aac", ".wma", ".mov", ".avi", ".mkv", ".webm",
 }
 
-model = whisper.load_model(MODEL_SIZE)
+
+def _get_device():
+    try:
+        import torch
+        if torch.backends.mps.is_available():
+            torch.zeros(1).to("mps")
+            return "mps"
+    except Exception:
+        pass
+    return "cpu"
+
+
+device = _get_device()
+model = whisper.load_model(MODEL_SIZE, device=device)
+print(f"デバイス: {device}")
 
 
 def _validate_path(path: str) -> None:
@@ -30,15 +46,47 @@ def _validate_file(path: str) -> None:
         raise ValueError(f"ファイルサイズが上限 ({MAX_FILE_SIZE_MB}MB) を超えています。")
 
 
-def transcribe(audio_path):
+def transcribe(audio_path, progress=gr.Progress()):
     if audio_path is None:
         return "音声ファイルをアップロードするか、マイクで録音してください。"
 
     try:
         _validate_path(audio_path)
         _validate_file(audio_path)
-        result = model.transcribe(audio_path)
-        return result["text"]
+
+        audio_array = whisper.load_audio(audio_path)
+        duration_sec = len(audio_array) / whisper.audio.SAMPLE_RATE
+
+        result_holder = [None]
+        error_holder = [None]
+
+        def run():
+            try:
+                result_holder[0] = model.transcribe(audio_path)
+            except Exception as e:
+                error_holder[0] = e
+
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+
+        # MPS は CPU の約3倍速、CPU は音声の約3倍の時間がかかる
+        estimated_sec = duration_sec / 3 if device == "mps" else duration_sec * 3
+        start = time.time()
+
+        while thread.is_alive():
+            elapsed = time.time() - start
+            frac = min(elapsed / estimated_sec, 0.95)
+            minutes = int(elapsed // 60)
+            seconds = int(elapsed % 60)
+            progress(frac, desc=f"文字起こし中... ({minutes}分{seconds}秒経過)")
+            time.sleep(1)
+
+        if error_holder[0]:
+            raise error_holder[0]
+
+        progress(1.0, desc="完了")
+        return result_holder[0]["text"]
+
     except ValueError as e:
         return f"エラー: {e}"
     except Exception:
