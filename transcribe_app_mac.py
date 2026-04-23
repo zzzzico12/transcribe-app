@@ -1,6 +1,5 @@
 import warnings
-from urllib3.exceptions import NotOpenSSLWarning
-warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
+warnings.filterwarnings("ignore", message=".*LibreSSL.*")
 
 import gradio as gr
 import whisper
