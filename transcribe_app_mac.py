@@ -176,6 +176,28 @@ footer { display: none !important; }
     box-shadow: 0 0 0 3px rgba(148,163,184,0.15) !important;
     outline: none !important;
 }
+
+/* マイク有効化ボタン */
+#btn-mic-activate {
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    color: #374151 !important;
+    font-weight: 500 !important;
+    font-size: 0.9375rem !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    transition: background 0.15s, border-color 0.15s !important;
+}
+#btn-mic-activate:hover {
+    background: #f9fafb !important;
+    border-color: #d1d5db !important;
+}
+.mic-notice {
+    font-size: 0.8125rem;
+    color: #9ca3af;
+    margin: 0 0 1rem;
+    line-height: 1.5;
+}
 """
 
 HEADER_HTML = """
@@ -336,14 +358,35 @@ with gr.Blocks(title="文字起こし", theme=gr.themes.Base(), css=CSS) as demo
             file_btn.click(fn=transcribe, inputs=file_input, outputs=file_output)
 
         with gr.TabItem("マイク録音"):
-            mic_input = gr.Audio(sources=["microphone"], type="filepath", label="マイク録音")
-            mic_btn = gr.Button("文字起こしを開始", variant="primary", elem_id="btn-mic")
+            with gr.Column() as mic_activate_col:
+                gr.HTML('<p class="mic-notice">録音を開始するとマイクへのアクセス許可を求めます</p>')
+                mic_activate_btn = gr.Button(
+                    "録音を開始する",
+                    variant="secondary",
+                    elem_id="btn-mic-activate",
+                )
+            mic_input = gr.Audio(
+                sources=["microphone"],
+                type="filepath",
+                label="マイク録音",
+                visible=False,
+            )
+            mic_btn = gr.Button(
+                "文字起こしを開始",
+                variant="primary",
+                elem_id="btn-mic",
+                visible=False,
+            )
             mic_output = gr.Textbox(
                 label="文字起こし結果",
                 lines=12,
                 show_copy_button=True,
                 placeholder="ここに文字起こし結果が表示されます",
                 elem_id="out-mic",
+            )
+            mic_activate_btn.click(
+                fn=lambda: (gr.update(visible=False), gr.update(visible=True), gr.update(visible=True)),
+                outputs=[mic_activate_col, mic_input, mic_btn],
             )
             mic_btn.click(fn=transcribe, inputs=mic_input, outputs=mic_output)
 
