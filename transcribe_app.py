@@ -10,7 +10,7 @@ import tempfile
 import threading
 import time
 
-MODEL_SIZE = "medium"
+MODEL_SIZE = "small"
 MAX_FILE_SIZE_MB = 2000
 ALLOWED_EXTENSIONS = {
     ".mp3", ".mp4", ".wav", ".m4a", ".ogg", ".flac",
