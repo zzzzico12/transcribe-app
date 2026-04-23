@@ -227,12 +227,22 @@ def _get_device():
 
 
 device = _get_device()
-try:
-    model = whisper.load_model(MODEL_SIZE, device=device)
-except (NotImplementedError, RuntimeError):
-    device = "cpu"
-    model = whisper.load_model(MODEL_SIZE, device=device)
-print(f"デバイス: {device}")
+_model = None
+_model_ready = threading.Event()
+
+
+def _load_model():
+    global _model, device
+    try:
+        _model = whisper.load_model(MODEL_SIZE, device=device)
+    except (NotImplementedError, RuntimeError):
+        device = "cpu"
+        _model = whisper.load_model(MODEL_SIZE, device=device)
+    print(f"デバイス: {device}  モデル準備完了")
+    _model_ready.set()
+
+
+threading.Thread(target=_load_model, daemon=True).start()
 
 
 def _validate_path(path: str) -> None:
@@ -256,6 +266,10 @@ def transcribe(audio_path, progress=gr.Progress()):
     if audio_path is None:
         return "音声ファイルをアップロードするか、マイクで録音してください。"
 
+    if not _model_ready.is_set():
+        progress(0, desc="モデルを読み込み中...")
+        _model_ready.wait()
+
     try:
         _validate_path(audio_path)
         _validate_file(audio_path)
@@ -268,7 +282,7 @@ def transcribe(audio_path, progress=gr.Progress()):
 
         def run():
             try:
-                result_holder[0] = model.transcribe(audio_path)
+                result_holder[0] = _model.transcribe(audio_path)
             except Exception as e:
                 error_holder[0] = e
 
