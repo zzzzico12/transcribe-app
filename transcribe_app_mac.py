@@ -25,7 +25,11 @@ def _get_device():
 
 
 device = _get_device()
-model = whisper.load_model(MODEL_SIZE, device=device)
+try:
+    model = whisper.load_model(MODEL_SIZE, device=device)
+except (NotImplementedError, RuntimeError):
+    device = "cpu"
+    model = whisper.load_model(MODEL_SIZE, device=device)
 print(f"デバイス: {device}")
 
 
