@@ -358,37 +358,25 @@ with gr.Blocks(title="文字起こし", theme=gr.themes.Base(), css=CSS) as demo
             file_btn.click(fn=transcribe, inputs=file_input, outputs=file_output)
 
         with gr.TabItem("マイク録音"):
-            with gr.Column() as mic_activate_col:
-                gr.HTML('<p class="mic-notice">録音を開始するとマイクへのアクセス許可を求めます</p>')
-                mic_activate_btn = gr.Button(
-                    "録音を開始する",
-                    variant="secondary",
-                    elem_id="btn-mic-activate",
-                )
-            mic_input = gr.Audio(
-                sources=["microphone"],
-                type="filepath",
-                label="マイク録音",
-                visible=False,
-            )
-            mic_btn = gr.Button(
-                "文字起こしを開始",
-                variant="primary",
-                elem_id="btn-mic",
-                visible=False,
-            )
-            mic_output = gr.Textbox(
-                label="文字起こし結果",
-                lines=12,
-                show_copy_button=True,
-                placeholder="ここに文字起こし結果が表示されます",
-                elem_id="out-mic",
-            )
-            mic_activate_btn.click(
-                fn=lambda: (gr.update(visible=False), gr.update(visible=True), gr.update(visible=True)),
-                outputs=[mic_activate_col, mic_input, mic_btn],
-            )
-            mic_btn.click(fn=transcribe, inputs=mic_input, outputs=mic_output)
+            mic_enabled = gr.State(False)
+
+            @gr.render(inputs=[mic_enabled])
+            def mic_ui(enabled):
+                if not enabled:
+                    gr.HTML('<p class="mic-notice">録音を開始するとマイクへのアクセス許可を求めます</p>')
+                    activate = gr.Button("録音を開始する", variant="secondary", elem_id="btn-mic-activate")
+                    activate.click(fn=lambda: True, outputs=[mic_enabled])
+                else:
+                    mic = gr.Audio(sources=["microphone"], type="filepath", label="マイク録音")
+                    run_btn = gr.Button("文字起こしを開始", variant="primary", elem_id="btn-mic")
+                    out = gr.Textbox(
+                        label="文字起こし結果",
+                        lines=12,
+                        show_copy_button=True,
+                        placeholder="ここに文字起こし結果が表示されます",
+                        elem_id="out-mic",
+                    )
+                    run_btn.click(fn=transcribe, inputs=mic, outputs=out)
 
 
 if __name__ == "__main__":
