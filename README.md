@@ -6,17 +6,33 @@
 
 ## Mac版
 
-### 事前準備
+### 1. 事前準備
 
 ```bash
-# Homebrew（未インストールの場合）
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# Homebrewのインストール確認
+brew --version
 
-# ffmpeg（未インストールの場合）
+# 未インストールの場合はインストール
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+```bash
+# ffmpegのインストール確認
+ffmpeg -version
+
+# 未インストールの場合はインストール
 brew install ffmpeg
 ```
 
-### セットアップ
+```bash
+# Pythonのインストール確認（3.9以上）
+python3 --version
+
+# 未インストールの場合はインストール
+brew install python
+```
+
+### 2. セットアップ
 
 ```bash
 # 仮想環境の作成と有効化
@@ -27,7 +43,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 起動
+### 3. 起動
 
 ```bash
 source venv/bin/activate
@@ -42,7 +58,7 @@ python3 transcribe_app_mac.py
 - `No module named 'whisper'` → `source venv/bin/activate` で仮想環境を有効化
 - ポート7860が使用中 → `server_port=7860` を別の番号（例: 7861）に変更
 - M1/M2/M3でエラー → `pip install torch torchvision torchaudio` を再実行
-- `ImportError: cannot import name 'HfFolder' from 'huggingface_hub'` → `huggingface_hub` の新しいバージョンで削除されたクラスを `gradio` が参照するため発生。以下で解決：
+- `ImportError: cannot import name 'HfFolder' from 'huggingface_hub'` → 以下で解決：
   ```bash
   pip install "huggingface_hub<1.0"
   ```
@@ -51,18 +67,28 @@ python3 transcribe_app_mac.py
 
 ## Windows版
 
-### 事前準備
+### 1. 事前準備
 
-以下がインストールされているか確認し、不足していれば導入してください。
+```powershell
+# Pythonのインストール確認（3.9以上）
+python --version
 
-- Python 3.9以上（`python --version` で確認）
-- pip（`pip --version` で確認）
-- ffmpeg（`ffmpeg -version` で確認）
-  - 未インストールの場合: https://www.gyan.dev/ffmpeg/builds/ からzipをダウンロードし、`C:\ffmpeg` に展開、環境変数PATHに `C:\ffmpeg\bin` を追加
+# 未インストールの場合はMicrosoft Storeからインストール
+# または https://www.python.org/downloads/ からダウンロード
+```
 
-### セットアップ
+```powershell
+# ffmpegのインストール確認
+ffmpeg -version
 
-PowerShellまたはコマンドプロンプトで実行：
+# wingetでインストール（Windows 10以降）
+winget install ffmpeg
+
+# wingetが使えない場合は https://www.gyan.dev/ffmpeg/builds/ からzipをダウンロードし、
+# C:\ffmpeg に展開後、環境変数PATHに C:\ffmpeg\bin を追加
+```
+
+### 2. セットアップ
 
 ```powershell
 # 仮想環境の作成と有効化
@@ -75,7 +101,7 @@ pip install -r requirements.txt
 
 プロンプトの先頭に `(venv)` が表示されれば有効化成功です。
 
-### 起動
+### 3. 起動
 
 ```powershell
 venv\Scripts\activate
@@ -99,7 +125,10 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 - `ffmpeg が見つかりません` → 環境変数PATHの設定を確認
 - `No module named 'whisper'` → `venv\Scripts\activate` で仮想環境を有効化
 - ポート7860が使用中 → `server_port=7860` を別の番号（例: 7861）に変更
-- スクリプトの実行が許可されていない → PowerShellで `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` を実行
+- スクリプトの実行が許可されていない → 以下を実行：
+  ```powershell
+  Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+  ```
 
 ---
 
@@ -107,8 +136,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 `transcribe_app_mac.py`（Mac）または `transcribe_app.py`（Windows）冒頭の `MODEL_SIZE` を変更します。
 
-| 値 | サイズ | 速度 | 精度 |
-|----|--------|------|------|
-| `"small"` | 約500MB | 速い | 普通 |
-| `"medium"` | 約1.5GB | 普通 | 良好（デフォルト） |
-| `"large"` | 約3GB | 遅い | 最高 |
+| 値 | サイズ | 1時間音声の処理時間（M1 CPU目安） | 精度 |
+|----|--------|----------------------------------|------|
+| `"small"` | 約500MB | 約20〜40分 | 実用レベル（デフォルト） |
+| `"medium"` | 約1.5GB | 約1〜2時間 | 高精度 |
+| `"large"` | 約3GB | 約3〜4時間 | 最高精度 |
