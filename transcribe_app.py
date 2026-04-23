@@ -344,8 +344,8 @@ with gr.Blocks(title="文字起こし", theme=gr.themes.Base(), css=CSS) as demo
 
     gr.HTML(HEADER_HTML)
 
-    with gr.Tabs():
-        with gr.TabItem("ファイルアップロード"):
+    with gr.Tabs(selected=0):
+        with gr.TabItem("ファイルアップロード", id=0):
             file_input = gr.Audio(type="filepath", label="音声・動画ファイル")
             file_btn = gr.Button("文字起こしを開始", variant="primary", elem_id="btn-file")
             file_output = gr.Textbox(
@@ -357,7 +357,7 @@ with gr.Blocks(title="文字起こし", theme=gr.themes.Base(), css=CSS) as demo
             )
             file_btn.click(fn=transcribe, inputs=file_input, outputs=file_output)
 
-        with gr.TabItem("マイク録音"):
+        with gr.TabItem("マイク録音", id=1):
             mic_enabled = gr.State(False)
 
             @gr.render(inputs=[mic_enabled])
