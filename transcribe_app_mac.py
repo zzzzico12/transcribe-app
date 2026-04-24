@@ -395,7 +395,7 @@ def transcribe(audio_path, progress=gr.Progress()):
             pass
 
 
-with gr.Blocks(title="文字起こし") as demo:
+with gr.Blocks(title="文字起こし", theme=gr.themes.Base(), css=CSS) as demo:
 
     gr.HTML(HEADER_HTML)
 
@@ -442,6 +442,4 @@ if __name__ == "__main__":
         server_name="127.0.0.1",
         server_port=7860,
         share=False,
-        theme=gr.themes.Base(),
-        css=CSS,
     )
