@@ -10,7 +10,14 @@ import tempfile
 import threading
 import time
 
-MODEL_SIZE = "small"
+try:
+    from faster_whisper import WhisperModel as FasterWhisperModel
+except ImportError:
+    FasterWhisperModel = None
+
+MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")
+TRANSCRIBE_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "ja")
+BEAM_SIZE = int(os.getenv("WHISPER_BEAM_SIZE", "1"))
 MAX_FILE_SIZE_MB = 2000
 ALLOWED_EXTENSIONS = {
     ".mp3", ".mp4", ".wav", ".m4a", ".ogg", ".flac",
@@ -251,17 +258,38 @@ def _get_device():
 
 device = _get_device()
 _model = None
+_backend = "openai-whisper"
 _model_ready = threading.Event()
 
 
-def _load_model():
-    global _model, device
+def _configure_torch_for_cpu() -> None:
+    if device != "cpu":
+        return
     try:
-        _model = whisper.load_model(MODEL_SIZE, device=device)
-    except (NotImplementedError, RuntimeError):
-        device = "cpu"
-        _model = whisper.load_model(MODEL_SIZE, device=device)
-    print(f"デバイス: {device}  モデル準備完了")
+        import torch
+        cpu_threads = max(1, (os.cpu_count() or 1) - 1)
+        torch.set_num_threads(cpu_threads)
+        torch.set_num_interop_threads(max(1, cpu_threads // 2))
+    except Exception:
+        pass
+
+
+def _load_model():
+    global _model, device, _backend
+    _configure_torch_for_cpu()
+
+    if FasterWhisperModel is not None:
+        # faster-whisper は MPS 非対応のため CPU で実行
+        _model = FasterWhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
+        _backend = "faster-whisper"
+    else:
+        try:
+            _model = whisper.load_model(MODEL_SIZE, device=device)
+        except (NotImplementedError, RuntimeError):
+            device = "cpu"
+            _configure_torch_for_cpu()
+            _model = whisper.load_model(MODEL_SIZE, device=device)
+    print(f"バックエンド: {_backend}  デバイス: {device}  モデル準備完了")
     _model_ready.set()
 
 
@@ -284,6 +312,33 @@ def _validate_file(path: str) -> None:
         raise ValueError(f"ファイルサイズが上限 ({MAX_FILE_SIZE_MB}MB) を超えています。")
 
 
+def _transcribe_with_backend(audio_path: str) -> str:
+    if _backend == "faster-whisper":
+        segments, _ = _model.transcribe(
+            audio_path,
+            language=TRANSCRIBE_LANGUAGE,
+            task="transcribe",
+            beam_size=BEAM_SIZE,
+            best_of=1,
+            temperature=0.0,
+            condition_on_previous_text=False,
+            vad_filter=True,
+        )
+        return "".join(segment.text for segment in segments).strip()
+
+    result = _model.transcribe(
+        audio_path,
+        language=TRANSCRIBE_LANGUAGE,
+        task="transcribe",
+        fp16=False,
+        temperature=0.0,
+        best_of=1,
+        condition_on_previous_text=False,
+        verbose=False,
+    )
+    return result["text"].strip()
+
+
 def transcribe(audio_path, progress=gr.Progress()):
     if audio_path is None:
         return "音声ファイルをアップロードするか、マイクで録音してください。"
@@ -304,7 +359,7 @@ def transcribe(audio_path, progress=gr.Progress()):
 
         def run():
             try:
-                result_holder[0] = _model.transcribe(audio_path)
+                result_holder[0] = _transcribe_with_backend(audio_path)
             except Exception as e:
                 error_holder[0] = e
 
@@ -326,7 +381,7 @@ def transcribe(audio_path, progress=gr.Progress()):
             raise error_holder[0]
 
         progress(1.0, desc="完了")
-        return result_holder[0]["text"]
+        return result_holder[0]
 
     except ValueError as e:
         return f"エラー: {e}"
@@ -340,24 +395,27 @@ def transcribe(audio_path, progress=gr.Progress()):
             pass
 
 
-with gr.Blocks(title="文字起こし", theme=gr.themes.Base(), css=CSS) as demo:
+with gr.Blocks(title="文字起こし") as demo:
 
     gr.HTML(HEADER_HTML)
 
-    with gr.Tabs():
-        with gr.TabItem("ファイルアップロード"):
-            file_input = gr.Audio(type="filepath", label="音声・動画ファイル")
+    with gr.Tabs(selected=0):
+        with gr.TabItem("ファイルアップロード", id=0):
+            file_input = gr.File(
+                type="filepath",
+                label="音声・動画ファイル",
+                file_types=sorted(ALLOWED_EXTENSIONS),
+            )
             file_btn = gr.Button("文字起こしを開始", variant="primary", elem_id="btn-file")
             file_output = gr.Textbox(
                 label="文字起こし結果",
                 lines=12,
-                show_copy_button=True,
                 placeholder="ここに文字起こし結果が表示されます",
                 elem_id="out-file",
             )
             file_btn.click(fn=transcribe, inputs=file_input, outputs=file_output)
 
-        with gr.TabItem("マイク録音"):
+        with gr.TabItem("マイク録音", id=1):
             mic_enabled = gr.State(False)
 
             @gr.render(inputs=[mic_enabled])
@@ -372,7 +430,6 @@ with gr.Blocks(title="文字起こし", theme=gr.themes.Base(), css=CSS) as demo
                     out = gr.Textbox(
                         label="文字起こし結果",
                         lines=12,
-                        show_copy_button=True,
                         placeholder="ここに文字起こし結果が表示されます",
                         elem_id="out-mic",
                     )
@@ -385,4 +442,6 @@ if __name__ == "__main__":
         server_name="127.0.0.1",
         server_port=7860,
         share=False,
+        theme=gr.themes.Base(),
+        css=CSS,
     )
