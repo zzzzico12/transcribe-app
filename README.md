@@ -132,12 +132,39 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ---
 
-## モデルサイズの変更
+## faster-whisper（高速化オプション）
 
-`transcribe_app_mac.py`（Mac）または `transcribe_app.py`（Windows）冒頭の `MODEL_SIZE` を変更します。
+`faster-whisper` をインストールすると、標準の openai-whisper より高速に処理できます（同精度で概ね2〜4倍速）。
+
+```bash
+pip install faster-whisper
+```
+
+インストール済みの場合は起動時に自動的に選択されます。起動ログに `バックエンド: faster-whisper` と表示されれば有効化成功です。
+
+---
+
+## 設定（環境変数）
+
+起動前に環境変数を設定することで、コードを変更せずに動作を変えられます。
+
+| 環境変数 | デフォルト | 説明 |
+|----------|-----------|------|
+| `WHISPER_MODEL_SIZE` | `small` | モデルサイズ（`small` / `medium` / `large`） |
+| `WHISPER_LANGUAGE` | `ja` | 文字起こし言語（例: `en`, `zh`） |
+| `WHISPER_BEAM_SIZE` | `1` | ビームサイズ（大きいほど精度向上、速度低下） |
+
+```bash
+# 例: mediumモデルで英語を文字起こし
+WHISPER_MODEL_SIZE=medium WHISPER_LANGUAGE=en python3 transcribe_app_mac.py
+```
+
+---
+
+## モデルサイズの変更
 
 | 値 | サイズ | 1時間音声の処理時間（M1 CPU目安） | 精度 |
 |----|--------|----------------------------------|------|
-| `"small"` | 約500MB | 約20〜40分 | 実用レベル（デフォルト） |
-| `"medium"` | 約1.5GB | 約1〜2時間 | 高精度 |
-| `"large"` | 約3GB | 約3〜4時間 | 最高精度 |
+| `small` | 約500MB | 約20〜40分 | 実用レベル（デフォルト） |
+| `medium` | 約1.5GB | 約1〜2時間 | 高精度 |
+| `large` | 約3GB | 約3〜4時間 | 最高精度 |
