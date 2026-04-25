@@ -321,7 +321,7 @@ def _validate_file(path: str) -> None:
         raise ValueError(f"ファイルサイズが上限 ({MAX_FILE_SIZE_MB}MB) を超えています。")
 
 
-def _transcribe_with_backend(audio_path: str) -> str:
+def _transcribe_with_backend(audio_path: str, duration_sec: float = 0, progress_holder=None) -> str:
     if _backend == "faster-whisper":
         segments, _ = _model.transcribe(
             audio_path,
@@ -333,7 +333,12 @@ def _transcribe_with_backend(audio_path: str) -> str:
             condition_on_previous_text=False,
             vad_filter=True,
         )
-        return "".join(segment.text for segment in segments).strip()
+        texts = []
+        for segment in segments:
+            texts.append(segment.text)
+            if progress_holder is not None and duration_sec > 0:
+                progress_holder[0] = min(segment.end / duration_sec, 0.95)
+        return "".join(texts).strip()
 
     result = _model.transcribe(
         audio_path,
@@ -365,10 +370,11 @@ def transcribe(audio_path, progress=gr.Progress()):
 
         result_holder = [None]
         error_holder = [None]
+        progress_holder = [0.0]
 
         def run():
             try:
-                result_holder[0] = _transcribe_with_backend(audio_path)
+                result_holder[0] = _transcribe_with_backend(audio_path, duration_sec, progress_holder)
             except Exception as e:
                 error_holder[0] = e
 
@@ -380,10 +386,15 @@ def transcribe(audio_path, progress=gr.Progress()):
 
         while thread.is_alive():
             elapsed = time.time() - start
-            frac = min(elapsed / estimated_sec, 0.95)
             minutes = int(elapsed // 60)
             seconds = int(elapsed % 60)
-            progress(frac, desc=f"文字起こし中... ({minutes}分{seconds}秒経過)")
+            if _backend == "faster-whisper":
+                frac = progress_holder[0]
+                desc = f"処理中 — {int(frac * 100)}%  {minutes}分{seconds}秒経過"
+            else:
+                frac = min(elapsed / estimated_sec, 0.95)
+                desc = f"文字起こし中... ({minutes}分{seconds}秒経過)"
+            progress(frac, desc=desc)
             time.sleep(1)
 
         if error_holder[0]:
